@@ -1,0 +1,2141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Escáner OCR">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Escáner OCR local</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f766e'/%3E%3Cpath d='M9 12V9h3M20 9h3v3M23 20v3h-3M12 23H9v-3' stroke='white' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3Cpath d='M12 14h8M12 18h5' stroke='white' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #f4f5f2;
+  --panel: #ffffff;
+  --panel-2: #f8f9f7;
+  --border: #dfe2dc;
+  --border-strong: #c6cbc2;
+  --text: #1c211d;
+  --muted: #5f675f;
+  --accent: #0f766e;
+  --accent-hover: #0b5f58;
+  --accent-soft: #e2f1ee;
+  --warn-bg: #fff1c7;
+  --warn-line: #e0a400;
+  --danger: #b42318;
+  --ok: #1f7a3d;
+  --shadow: 0 1px 2px rgba(20, 30, 20, .06), 0 4px 16px rgba(20, 30, 20, .05);
+  --radius: 10px;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131614;
+    --panel: #1b1f1c;
+    --panel-2: #20251f;
+    --border: #2e352f;
+    --border-strong: #3d463e;
+    --text: #e6eae5;
+    --muted: #9aa49b;
+    --accent: #2bb5a6;
+    --accent-hover: #3ccbbb;
+    --accent-soft: #163a35;
+    --warn-bg: #4a3b0c;
+    --warn-line: #d9a514;
+    --danger: #ff7b6e;
+    --ok: #5fcf86;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+button, select, input { font: inherit; color: inherit; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* ---------- Encabezado ---------- */
+header.top {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand svg { flex: none; }
+.brand h1 { font-size: 17px; margin: 0; letter-spacing: -.01em; }
+.brand p { margin: 0; color: var(--muted); font-size: 12.5px; }
+.privacy {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; color: var(--accent); background: var(--accent-soft);
+  padding: 5px 10px; border-radius: 999px; white-space: nowrap;
+}
+
+/* ---------- Distribución ---------- */
+.layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; padding: 16px; }
+.side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.work { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; min-width: 0; align-items: start; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.card > .card-h {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 14px; border-bottom: 1px solid var(--border); min-height: 48px;
+}
+.card-h h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0; font-weight: 600; }
+.card-b { padding: 14px; }
+@media (max-width: 1180px) { .work { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 780px) {
+  .stage canvas { max-height: 60vh; }
+  .card-h { padding: 10px 12px; }
+  .layout { grid-template-columns: minmax(0, 1fr); padding: 12px; }
+  header.top { padding: 10px 14px; flex-wrap: wrap; }
+  .privacy { margin-left: 0; }
+}
+
+/* ---------- Zona de carga ---------- */
+.drop {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+  padding: 22px 14px; border: 2px dashed var(--border-strong); border-radius: var(--radius);
+  background: var(--panel); cursor: pointer; transition: border-color .15s, background .15s;
+}
+.drop:hover, .drop:focus-visible, body.dragging .drop { border-color: var(--accent); background: var(--accent-soft); outline: none; }
+.drop strong { font-size: 14.5px; }
+.drop span { color: var(--muted); font-size: 12.5px; }
+kbd { font-family: var(--mono); font-size: 11.5px; border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--panel-2); }
+
+/* ---------- Lista de páginas ---------- */
+.pages { list-style: none; margin: 0; padding: 6px; display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow: auto; }
+.pages:empty::before { content: "Aún no has agregado imágenes."; display: block; padding: 10px 8px; color: var(--muted); font-size: 13px; }
+.pg {
+  display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  padding: 6px; border-radius: 8px; cursor: pointer; border: 1px solid transparent;
+}
+.pg:hover { background: var(--panel-2); }
+.pg.sel { background: var(--accent-soft); border-color: var(--accent); }
+.pg img { width: 46px; height: 46px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); background: #fff; }
+.pg .nm { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pg .st { font-size: 11.5px; color: var(--muted); }
+.pg .st.ok { color: var(--ok); } .pg .st.err { color: var(--danger); } .pg .st.run { color: var(--accent); }
+.icon-btn {
+  display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 7px;
+  border: 1px solid transparent; background: transparent; cursor: pointer; color: var(--muted);
+}
+.icon-btn:hover { background: var(--panel-2); border-color: var(--border); color: var(--text); }
+.icon-btn:disabled { opacity: .4; cursor: default; }
+
+/* ---------- Ajustes ---------- */
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.field label, .field .lbl { font-size: 12.5px; font-weight: 600; }
+.field small { color: var(--muted); font-size: 12px; }
+select {
+  width: 100%; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border-strong);
+  background: var(--panel); appearance: auto;
+}
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin: 6px 0; cursor: pointer; }
+.check input { margin-top: 3px; accent-color: var(--accent); }
+details.adv summary { cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--muted); margin: 4px 0 8px; }
+
+/* ---------- Botones ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 8px 13px; border-radius: 8px; border: 1px solid var(--border-strong);
+  background: var(--panel); cursor: pointer; font-weight: 500; white-space: nowrap;
+}
+.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover:not(:disabled) { background: var(--accent-hover); color: #fff; }
+.btn.big { width: 100%; padding: 11px 14px; font-size: 15px; }
+.btn.sm { padding: 4px 9px; font-size: 12.5px; border-radius: 7px; }
+.btn.rec { box-shadow: 0 0 0 3px var(--accent-soft); border-color: var(--accent); }
+
+/* ---------- Progreso ---------- */
+.progress { margin-top: 12px; display: none; }
+.progress.on { display: block; }
+.bar { height: 8px; border-radius: 99px; background: var(--panel-2); border: 1px solid var(--border); overflow: hidden; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.progress p { margin: 6px 0 0; font-size: 12.5px; color: var(--muted); }
+
+/* ---------- Vista previa ---------- */
+.viewer { padding: 12px; display: flex; justify-content: center; align-items: flex-start; min-height: 320px; background:
+  repeating-conic-gradient(var(--panel-2) 0% 25%, var(--panel) 0% 50%) 50% / 18px 18px; border-radius: 0 0 var(--radius) var(--radius); }
+.stage { position: relative; display: inline-block; line-height: 0; overflow: hidden; touch-action: none; user-select: none; max-width: 100%; }
+.cam, .touch-only { display: none; }
+@media (pointer: coarse) {
+  .cam { display: flex; }
+  .touch-only { display: inline-flex; }
+  .desk-only { display: none; }
+  .stage { touch-action: pan-y pinch-zoom; }
+  .stage canvas { cursor: default; }
+  .stage.cropping { touch-action: none; outline: 3px solid var(--accent); outline-offset: 2px; }
+  .btn.sm, .icon-btn { min-height: 36px; }
+  .icon-btn { width: 38px; }
+}
+.btn.toggled { background: var(--accent); color: #fff; border-color: var(--accent); }
+.stage canvas { max-width: 100%; max-height: 72vh; height: auto; box-shadow: 0 2px 10px rgba(0, 0, 0, .15); background: #fff; cursor: crosshair; }
+.stage.processed canvas { cursor: default; }
+.crop { position: absolute; border: 2px solid var(--accent); background: rgba(15, 118, 110, .12); box-shadow: 0 0 0 9999px rgba(0, 0, 0, .28); pointer-events: none; }
+.empty { color: var(--muted); text-align: center; padding: 40px 16px; line-height: 1.6; align-self: center; }
+.empty b { color: var(--text); }
+.seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--panel); padding: 4px 10px; font-size: 12.5px; cursor: pointer; }
+.seg button.on { background: var(--accent); color: #fff; }
+.spacer { flex: 1; }
+.hint { font-size: 12px; color: var(--muted); padding: 0 14px 10px; margin: 0; }
+.meta { font-size: 12px; color: var(--muted); }
+
+/* ---------- Resultados ---------- */
+.res-h { position: sticky; top: 0; z-index: 3; background: var(--panel); border-radius: var(--radius) var(--radius) 0 0; }
+.badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 3px 9px; border-radius: 99px; background: var(--panel-2); border: 1px solid var(--border); color: var(--muted); }
+.badge.good { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.badge.warn { background: var(--warn-bg); color: inherit; border-color: var(--warn-line); }
+.alt-lbl { display: flex; gap: 6px; align-items: center; }
+.results { padding: 14px; display: flex; flex-direction: column; gap: 18px; }
+.page-result { display: flex; flex-direction: column; gap: 12px; }
+.pr-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.pr-h h3 { margin: 0; font-size: 13.5px; cursor: pointer; }
+.pr-h select { width: auto; padding: 3px 8px; font-size: 12.5px; }
+.tblock {
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel);
+  font-size: 14.5px; line-height: 1.6; outline: none; white-space: pre-wrap; word-wrap: break-word;
+}
+.tblock:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.tblock p { margin: 0 0 .7em; }
+.tblock p:last-child { margin-bottom: 0; }
+.tblock p.h { font-weight: 700; font-size: 1.12em; }
+mark.dud { background: var(--warn-bg); color: inherit; border-bottom: 2px dotted var(--warn-line); border-radius: 2px; padding: 0 1px; }
+.no-marks mark.dud { background: none; border: 0; padding: 0; }
+.tbl-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.exp { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.tbl-tools .btn { padding: 3px 8px; font-size: 12px; }
+.tbl-tools .ttl { font-size: 12.5px; font-weight: 600; margin-right: 4px; }
+.table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 8px; max-height: 62vh; }
+table.ocr { border-collapse: collapse; width: max-content; min-width: 100%; font-size: 13.5px; }
+table.ocr td { border: 1px solid var(--border); padding: 5px 8px; min-width: 60px; vertical-align: top; outline: none; white-space: pre-wrap; }
+table.ocr td:focus { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); }
+table.ocr td.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.ocr td.dud { background: var(--warn-bg); }
+.no-marks table.ocr td.dud { background: none; }
+table.ocr.head tr:first-child td { font-weight: 700; background: var(--panel-2); position: sticky; top: 0; z-index: 1; }
+table.ocr td.act { box-shadow: inset 0 0 0 2px var(--accent); }
+.legend { font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.legend i { width: 14px; height: 10px; background: var(--warn-bg); border-bottom: 2px dotted var(--warn-line); display: inline-block; }
+
+/* ---------- Avisos ---------- */
+.toast {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(20px);
+  background: var(--text); color: var(--panel); padding: 10px 16px; border-radius: 9px;
+  font-size: 13.5px; opacity: 0; pointer-events: none; transition: .2s; max-width: min(560px, 92vw); z-index: 50;
+}
+.toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.err { background: var(--danger); color: #fff; }
+footer { padding: 4px 20px 20px; color: var(--muted); font-size: 12px; }
+footer a { color: inherit; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><path d="M9 12V9h3M20 9h3v3M23 20v3h-3M12 23H9v-3" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M12 14h8M12 18h5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
+    <div>
+      <h1>Escáner OCR</h1>
+      <p>Imagen o PDF escaneado → Word editable o Excel</p>
+    </div>
+  </div>
+  <span class="privacy" title="El reconocimiento corre dentro de tu navegador. Las imágenes no se envían a ningún servidor.">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+    Tus archivos no salen de este equipo
+  </span>
+</header>
+
+<main class="layout">
+  <!-- ============ Barra lateral ============ -->
+  <aside class="side">
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Agregar imágenes o PDF">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg>
+      <strong>Agregar imágenes o PDF</strong>
+      <span class="desk-only">Arrastra aquí, haz clic o pega una captura con <kbd>Ctrl</kbd>+<kbd>V</kbd></span>
+      <span class="touch-only">Toca para elegir fotos de la galería o un PDF</span>
+      <input type="file" id="file" class="sr-only" multiple accept="image/*,.pdf,application/pdf">
+    </div>
+    <button class="btn primary big cam" id="camBtn" type="button">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+      Tomar foto
+    </button>
+    <input type="file" id="camFile" class="sr-only" accept="image/*" capture="environment">
+
+    <section class="card">
+      <div class="card-h"><h2>Páginas</h2><span class="spacer"></span>
+        <button class="btn sm" id="clearAll" disabled>Quitar todo</button></div>
+      <ul class="pages" id="pages"></ul>
+    </section>
+
+    <section class="card">
+      <div class="card-h"><h2>Ajustes</h2></div>
+      <div class="card-b">
+        <div class="field">
+          <label for="mode">¿Qué contiene la imagen?</label>
+          <select id="mode">
+            <option value="auto">Detectar automáticamente</option>
+            <option value="text">Texto (párrafos) → Word</option>
+            <option value="table">Tabla → Excel</option>
+          </select>
+          <small id="modeHelp">Separa párrafos y tablas por sí solo.</small>
+        </div>
+        <div class="field">
+          <label for="lang">Idioma del documento</label>
+          <select id="lang">
+            <option value="spa">Español</option>
+            <option value="spa+eng">Español + inglés</option>
+            <option value="eng">Inglés</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="prep">Mejora de la imagen</label>
+          <select id="prep">
+            <option value="auto">Automática (recomendada)</option>
+            <option value="otsu">Escaneo o captura de pantalla</option>
+            <option value="adaptive">Foto con sombras o luz irregular</option>
+            <option value="none">Sin procesar (imagen original)</option>
+          </select>
+        </div>
+        <details class="adv">
+          <summary>Opciones avanzadas</summary>
+          <label class="check"><input type="checkbox" id="deskew" checked> Enderezar si está inclinada</label>
+          <label class="check"><input type="checkbox" id="lines" checked> Borrar líneas de tablas antes de leer</label>
+          <label class="check"><input type="checkbox" id="convert" checked> En Excel, convertir números, $, % y fechas</label>
+          <div class="field" style="margin-top:8px">
+            <label for="locale">Formato de números</label>
+            <select id="locale">
+              <option value="auto">Detectar (1.234,56 o 1,234.56)</option>
+              <option value="co">Colombia: 1.234.567,89</option>
+              <option value="us">EE. UU.: 1,234,567.89</option>
+            </select>
+          </div>
+          <label class="check"><input type="checkbox" id="marks" checked> Resaltar palabras dudosas</label>
+        </details>
+        <button class="btn primary big" id="run" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3M8 12h8"/></svg>
+          <span id="runLbl">Extraer texto</span>
+        </button>
+        <div class="progress" id="prog" aria-live="polite">
+          <div class="bar"><i id="progBar"></i></div>
+          <p id="progTxt">Preparando…</p>
+        </div>
+      </div>
+    </section>
+  </aside>
+
+  <!-- ============ Área de trabajo ============ -->
+  <section class="work">
+    <article class="card" id="viewCard">
+      <div class="card-h">
+        <h2>Imagen</h2>
+        <span class="meta" id="viewName"></span>
+        <span class="spacer"></span>
+        <div class="seg" role="group" aria-label="Vista">
+          <button id="vOrig" class="on" title="Imagen original">Original</button>
+          <button id="vProc" title="Así la ve el motor OCR después de mejorarla">Procesada</button>
+        </div>
+        <button class="icon-btn" id="rotL" title="Girar a la izquierda" disabled><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+        <button class="icon-btn" id="rotR" title="Girar a la derecha" disabled><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>
+        <button class="btn sm touch-only" id="cropBtn" disabled>Recortar</button>
+        <button class="btn sm" id="uncrop" disabled>Quitar recorte</button>
+      </div>
+      <p class="hint" id="cropHint" hidden><span class="desk-only">Arrastra sobre la imagen para leer solo una zona (por ejemplo, solo la tabla).</span><span class="touch-only">Para leer solo una zona, toca «Recortar» y desliza el dedo sobre la imagen.</span></p>
+      <div class="viewer" id="viewer">
+        <div class="empty" id="viewEmpty">
+          <b>Empieza agregando una imagen</b><br>
+          Fotos del celular, capturas de pantalla, facturas escaneadas<br>o un PDF escaneado de varias páginas.
+        </div>
+        <div class="stage" id="stage" hidden><canvas id="canvas"></canvas><div class="crop" id="cropBox" hidden></div></div>
+      </div>
+    </article>
+
+    <article class="card" id="resCard">
+      <div class="card-h res-h">
+        <h2>Resultado</h2>
+        <span class="badge" id="summary">Sin resultados</span>
+        <span class="spacer"></span>
+        <div class="exp">
+        <button class="btn sm" id="expWord" disabled title="Documento de Word editable (.docx)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M8 12l1.5 6 2.5-5 2.5 5L16 12"/></svg>Word</button>
+        <button class="btn sm" id="expExcel" disabled title="Libro de Excel (.xlsx)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M4 9h16M4 15h16M10 3v18"/></svg>Excel</button>
+        <button class="btn sm" id="expTxt" disabled title="Texto plano (.txt)">TXT</button>
+        <button class="btn sm" id="copyAll" disabled title="Copiar todo al portapapeles">Copiar</button>
+        </div>
+      </div>
+      <div class="results" id="results">
+        <div class="empty">Aquí aparecerá lo que se extraiga.<br>Puedes <b>corregir el texto y las celdas</b> directamente antes de exportar.</div>
+      </div>
+    </article>
+  </section>
+</main>
+<footer>
+  Funciona con librerías de código abierto de GitHub:
+  <a href="https://github.com/naptha/tesseract.js" target="_blank" rel="noopener">Tesseract.js</a> (motor OCR),
+  <a href="https://github.com/dolanmiu/docx" target="_blank" rel="noopener">docx</a> (Word),
+  <a href="https://github.com/Stuk/jszip" target="_blank" rel="noopener">JSZip</a> (Excel) y
+  <a href="https://github.com/mozilla/pdf.js" target="_blank" rel="noopener">PDF.js</a> (PDF).
+  La primera vez necesita internet para descargar el motor y el idioma; después queda en la caché del navegador.
+</footer>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* Configuración de librerías (CDN). Para usar sin internet, descarga estos archivos
+   y cambia las rutas aquí o define window.OCR_CONFIG antes de este script. */
+const CFG = Object.assign({
+  tesseract: 'https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js',
+  jszip: 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+  docx: 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js',
+  pdfjs: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/legacy/build/pdf.min.mjs',
+  pdfWorker: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/legacy/build/pdf.worker.min.mjs',
+  workerOptions: {},
+}, window.OCR_CONFIG || {});
+</script>
+<script>
+/* ==========================================================================
+   Layout: reconstruye filas, tablas y párrafos a partir del TSV de Tesseract
+   ========================================================================== */
+const Layout = (() => {
+  const median = (arr) => {
+    if (!arr.length) return 0;
+    const s = [...arr].sort((a, b) => a - b);
+    const m = s.length >> 1;
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  };
+
+  const PIPES = /^[|¦\[\]{}_~—–=]+$/;
+  const LONE = /^[|Il1Jij'"`´.,:;!¡°*-]{1,2}$/;
+  const NUMERIC = /^[(\-−+]?\s*[$€£%]?\s*[(\-−+]?\d[\d.,\s]*%?\)?$/;
+  const DATE = /^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}$/;
+
+  function parseTSV(tsv, size) {
+    const words = [];
+    for (const line of String(tsv || '').split('\n')) {
+      const c = line.split('\t');
+      if (c.length < 12 || c[0] !== '5') continue;
+      const text = c.slice(11).join(' ').trim();
+      if (!text) continue;
+      const x = +c[6], y = +c[7], w = +c[8], h = +c[9];
+      words.push({
+        block: +c[2], par: +c[3], line: +c[4],
+        x0: x, y0: y, x1: x + w, y1: y + h,
+        conf: parseFloat(c[10]), text,
+      });
+    }
+    return cleanWords(words, size);
+  }
+
+  /* Elimina restos de bordes de tabla y manchas que el OCR lee como letras */
+  function cleanWords(words, size) {
+    // Basura pegada al borde de la imagen (orilla del papel, sombras)
+    if (size && size.width && size.height) {
+      const mx = size.width * 0.015, my = size.height * 0.015;
+      words = words.filter((w) => !(w.conf < 65 &&
+        (w.x0 < mx || w.y0 < my || w.x1 > size.width - mx || w.y1 > size.height - my)));
+    }
+    // Líneas completas sin sentido (confianza media muy baja)
+    const lineConf = new Map();
+    for (const w of words) {
+      const k = `${w.block}.${w.par}.${w.line}`;
+      const v = lineConf.get(k) || { s: 0, n: 0 };
+      v.s += w.conf; v.n++;
+      lineConf.set(k, v);
+    }
+    words = words.filter((w) => {
+      const v = lineConf.get(`${w.block}.${w.par}.${w.line}`);
+      return !(v.n >= 2 && v.s / v.n < 35);
+    });
+    const hs = words.filter((w) => /[A-Za-z0-9À-ÿ]{2,}/.test(w.text)).map((w) => w.y1 - w.y0);
+    const hMed = median(hs) || median(words.map((w) => w.y1 - w.y0)) || 20;
+    const kept = words.filter((w) => {
+      const h = w.y1 - w.y0;
+      const alnum = /[A-Za-z0-9À-ÿ]/.test(w.text);
+      if (PIPES.test(w.text)) return false;
+      if (LONE.test(w.text) && w.conf < 45) return false;
+      if (w.conf < 15 && !alnum) return false;
+      if (h > hMed * 3.5 && w.text.length <= 3) return false;
+      if (alnum && h < hMed * 0.35 && w.text.length <= 2) return false;
+      return true;
+    }).map((w) => ({ ...w, text: w.text.replace(/^[|¦“”"]+(?=\d)|[|¦]+$|^[|¦]+/g, '') }))
+      .filter((w) => w.text);
+    // Líneas formadas solo por trazos sueltos (I, J, l, |) son restos de bordes
+    const byLine = new Map();
+    for (const w of kept) {
+      const k = `${w.block}.${w.par}.${w.line}`;
+      if (!byLine.has(k)) byLine.set(k, []);
+      byLine.get(k).push(w);
+    }
+    const junk = new Set();
+    for (const [k, ws] of byLine) if (ws.every((w) => LONE.test(w.text))) junk.add(k);
+    return kept.filter((w) => !junk.has(`${w.block}.${w.par}.${w.line}`));
+  }
+
+  /* Agrupa en líneas de Tesseract y luego une líneas que comparten franja vertical */
+  function buildRows(words) {
+    const map = new Map();
+    for (const w of words) {
+      const k = `${w.block}.${w.par}.${w.line}`;
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(w);
+    }
+    const lines = [...map.values()].map((ws) => box(ws));
+    lines.sort((a, b) => (a.y0 + a.y1) - (b.y0 + b.y1));
+    const rows = [];
+    for (const ln of lines) {
+      let best = null, bestRatio = 0;
+      for (let i = Math.max(0, rows.length - 12); i < rows.length; i++) {
+        const r = rows[i];
+        const ov = Math.min(r.y1, ln.y1) - Math.max(r.y0, ln.y0);
+        const ratio = ov / Math.max(1, Math.min(r.hMed * 1.2, ln.hMed * 1.2, r.y1 - r.y0, ln.y1 - ln.y0));
+        const clash = r.words.some((w) => w.x0 < ln.x1 && ln.x0 < w.x1);
+        if (ratio > 0.5 && !clash && ratio > bestRatio) { best = r; bestRatio = ratio; }
+      }
+      if (best) {
+        const merged = box(best.words.concat(ln.words));
+        Object.assign(best, merged);
+      } else rows.push(ln);
+    }
+    rows.sort((a, b) => (a.y0 + a.y1) - (b.y0 + b.y1));
+    return rows;
+  }
+
+  function box(ws) {
+    const words = [...ws].sort((a, b) => a.x0 - b.x0);
+    return {
+      words,
+      x0: Math.min(...words.map((w) => w.x0)),
+      x1: Math.max(...words.map((w) => w.x1)),
+      y0: Math.min(...words.map((w) => w.y0)),
+      y1: Math.max(...words.map((w) => w.y1)),
+      hMed: median(words.map((w) => w.y1 - w.y0)),
+    };
+  }
+
+  /* Divide una fila en "frases" (posibles celdas) según los espacios grandes */
+  function splitPhrases(row, gapFactor) {
+    const phrases = [];
+    let cur = null;
+    const T = Math.max(6, row.hMed * gapFactor);
+    for (const w of row.words) {
+      if (cur && w.x0 - cur.x1 <= T) {
+        cur.words.push(w); cur.x1 = Math.max(cur.x1, w.x1);
+      } else {
+        cur = { words: [w], x0: w.x0, x1: w.x1 };
+        phrases.push(cur);
+      }
+    }
+    // Solo cuentan como celda las frases con letras/números (o un guion, que en contabilidad es cero)
+    for (const p of phrases) p.real = p.words.some((w) => /[A-Za-z0-9À-ÿ]/.test(w.text) || /^[-—–]$/.test(w.text));
+    row.phrases = phrases.filter((p) => p.real).length ? phrases.filter((p) => p.real) : phrases;
+    row.multi = phrases.filter((p) => p.real).length >= 2;
+    return row;
+  }
+
+  /* Busca separadores de columna: franjas verticales vacías en casi todas las filas */
+  function findSeparators(rows) {
+    const multi = rows.filter((r) => r.multi);
+    if (multi.length < 2) return [];
+    const minX = Math.floor(Math.min(...multi.map((r) => r.x0)));
+    const maxX = Math.ceil(Math.max(...multi.map((r) => r.x1)));
+    const W = maxX - minX + 1;
+    const cov = new Int32Array(W);
+    const mark = new Uint8Array(W);
+    for (const r of multi) {
+      mark.fill(0);
+      for (const p of r.phrases) {
+        for (let x = Math.max(0, p.x0 - minX); x <= Math.min(W - 1, p.x1 - minX); x++) mark[x] = 1;
+      }
+      for (let x = 0; x < W; x++) cov[x] += mark[x];
+    }
+    const tol = Math.floor(multi.length * 0.12);
+    const hMed = median(multi.map((r) => r.hMed)) || 20;
+    const minGap = Math.max(5, hMed * 0.45);
+    const seps = [];
+    let x = 0;
+    while (x < W) {
+      if (cov[x] <= tol) {
+        let e = x;
+        while (e + 1 < W && cov[e + 1] <= tol) e++;
+        if (x > 0 && e < W - 1 && e - x + 1 >= minGap) {
+          let minV = Infinity;
+          for (let k = x; k <= e; k++) minV = Math.min(minV, cov[k]);
+          let a = -1, b = -1;
+          for (let k = x; k <= e; k++) if (cov[k] === minV) { if (a < 0) a = k; b = k; }
+          seps.push(minX + (a + b) / 2);
+        }
+        x = e + 1;
+      } else x++;
+    }
+    return seps;
+  }
+
+  const isNumeric = (t) => NUMERIC.test(t.trim()) || DATE.test(t.trim());
+
+  function buildTable(rows, seps) {
+    const ncol = seps.length + 1;
+    const colOf = (x) => { let i = 0; while (i < seps.length && x > seps[i]) i++; return i; };
+    const out = rows.map((r) => {
+      const cells = Array.from({ length: ncol }, () => ({ words: [] }));
+      if (!r.multi && ncol > 1) {
+        cells[colOf(r.x0 + r.hMed * 0.3)].words.push(...r.words);
+      } else {
+        for (const w of r.words) cells[colOf((w.x0 + w.x1) / 2)].words.push(w);
+      }
+      return cells.map((c) => ({
+        text: c.words.map((w) => w.text).join(' '),
+        conf: c.words.length ? Math.min(...c.words.map((w) => w.conf)) : 100,
+      }));
+    });
+    // quita columnas totalmente vacías
+    const keep = [];
+    for (let c = 0; c < ncol; c++) if (out.some((row) => row[c].text)) keep.push(c);
+    let table = out.map((row) => keep.map((c) => row[c]));
+    table = mergeSparseColumns(table);
+    const first = table[0] || [];
+    const headerish = (t) => !isNumeric(t) || /^(19|20)\d{2}$/.test(t.trim());
+    const header = table.length >= 2 && first.filter((c) => c.text).length >= 2 &&
+      first.every((c) => !c.text || headerish(c.text)) &&
+      table.slice(1).some((row) => row.some((c) => c.text && isNumeric(c.text)));
+    return { type: 'table', rows: table, header, y0: rows[0].y0 };
+  }
+
+  /* Une columnas casi vacías con su vecina cuando nunca coinciden en la misma fila
+     (típico: título "Total" alineado a la izquierda y valores alineados a la derecha) */
+  function mergeSparseColumns(table) {
+    const filled = (t, c) => t.filter((row) => row[c] && row[c].text).length;
+    const complementary = (t, a, b) => t.every((row) => !(row[a].text && row[b].text));
+    let changed = true;
+    while (changed && table.length && table[0].length > 1) {
+      changed = false;
+      const ncol = table[0].length;
+      const limit = Math.max(1, Math.floor(table.length * 0.15));
+      const order = [...Array(ncol).keys()].sort((a, b) => filled(table, a) - filled(table, b));
+      for (const c of order) {
+        if (filled(table, c) > limit) break;
+        const opts = [c - 1, c + 1].filter((n) => n >= 0 && n < ncol && complementary(table, c, n));
+        if (!opts.length) continue;
+        opts.sort((a, b) => filled(table, b) - filled(table, a) || b - a);
+        const n = opts[0];
+        table = table.map((row) => {
+          const r = [...row];
+          if (!r[n].text) r[n] = r[c];
+          r.splice(c, 1);
+          return r;
+        });
+        changed = true;
+        break;
+      }
+    }
+    return table;
+  }
+
+  function buildParagraphs(rows, docH) {
+    const paras = [];
+    const right = Math.max(...rows.map((r) => r.x1));
+    let cur = null;
+    rows.forEach((r, i) => {
+      const words = r.words.map((w) => ({ text: w.text, conf: w.conf }));
+      const text = words.map((w) => w.text).join(' ');
+      let brk = !cur;
+      const prev = rows[i - 1];
+      if (prev && cur) {
+        const gap = r.y0 - prev.y1;
+        const hMin = Math.min(prev.hMed, r.hMed), hMax = Math.max(prev.hMed, r.hMed);
+        if (gap > 1.0 * hMin) brk = true;
+        if (hMax / Math.max(1, hMin) > 1.3) brk = true;
+        const prevText = prev.words.map((w) => w.text).join(' ');
+        if (/[.:!?;»”"]$/.test(prevText) && prev.x1 < right - 4 * prev.hMed) brk = true;
+        if (r.x0 > prev.x0 + 2.5 * r.hMed && r.words.length < 3) brk = true;
+      }
+      if (brk) {
+        cur = { words: [...words], lines: 1, hMed: r.hMed };
+        paras.push(cur);
+      } else {
+        const last = cur.words[cur.words.length - 1];
+        if (last && /[A-Za-zÀ-ÿ]-$/.test(last.text) && /^[a-zà-ÿ]/.test(words[0].text)) {
+          last.text = last.text.slice(0, -1) + words[0].text;
+          last.conf = Math.min(last.conf, words[0].conf);
+          cur.words.push(...words.slice(1));
+        } else cur.words.push(...words);
+        cur.lines++;
+        cur.hMed = Math.max(cur.hMed, r.hMed);
+      }
+    });
+    for (const p of paras) {
+      p.text = p.words.map((w) => w.text).join(' ');
+      const letters = p.text.replace(/[^A-Za-zÀ-ÿ]/g, '');
+      p.heading = p.lines === 1 && p.text.length < 90 &&
+        (p.hMed > docH * 1.25 || (letters.length >= 4 && letters === letters.toUpperCase()));
+    }
+    return { type: 'text', paragraphs: paras, y0: rows[0].y0 };
+  }
+
+  /**
+   * Analiza las palabras de una página.
+   * mode: 'auto' | 'text' | 'table'
+   */
+  function analyze(words, mode = 'auto', opts = {}) {
+    const gapFactor = opts.gapFactor || 0.9;
+    if (!words.length) return { blocks: [], tables: 0 };
+    const rows = buildRows(words).map((r) => splitPhrases(r, gapFactor));
+    const docH = median(rows.map((r) => r.hMed)) || 20;
+    const blocks = [];
+    if (mode === 'text') {
+      blocks.push(buildParagraphs(rows, docH));
+    } else if (mode === 'table') {
+      const seps = findSeparators(rows);
+      blocks.push(buildTable(rows, seps));
+    } else {
+      let i = 0;
+      let textRun = [];
+      const flushText = () => { if (textRun.length) blocks.push(buildParagraphs(textRun, docH)); textRun = []; };
+      while (i < rows.length) {
+        if (rows[i].multi) {
+          let j = i;
+          while (j + 1 < rows.length) {
+            const nxt = rows[j + 1];
+            const gap = nxt.y0 - rows[j].y1;
+            if (gap > 3 * docH) break;
+            if (nxt.multi) { j++; continue; }
+            const nn = rows[j + 2];
+            if (nn && nn.multi && nn.y0 - nxt.y1 < 3 * docH) { j++; continue; }
+            break;
+          }
+          const run = rows.slice(i, j + 1);
+          const seps = run.filter((r) => r.multi).length >= 2 ? findSeparators(run) : [];
+          if (seps.length) {
+            flushText();
+            blocks.push(buildTable(run, seps));
+          } else textRun.push(...run);
+          i = j + 1;
+        } else {
+          textRun.push(rows[i]);
+          i++;
+        }
+      }
+      flushText();
+    }
+    return { blocks, tables: blocks.filter((b) => b.type === 'table').length };
+  }
+
+  return { parseTSV, analyze, isNumeric, median };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = Layout;
+</script>
+<script>
+/* ==========================================================================
+   ImageProc: preprocesado para mejorar el OCR (escala de grises, binarización,
+   enderezado y eliminación de líneas de tabla). Funciones puras sobre arreglos.
+   ========================================================================== */
+const ImageProc = (() => {
+  function toGray(imgData) {
+    const { data, width, height } = imgData;
+    const g = new Uint8ClampedArray(width * height);
+    for (let i = 0, j = 0; i < g.length; i++, j += 4) {
+      const a = data[j + 3] / 255;
+      const v = (data[j] * 299 + data[j + 1] * 587 + data[j + 2] * 114) / 1000;
+      g[i] = v * a + 255 * (1 - a);
+    }
+    return g;
+  }
+
+  function mean(g) {
+    let s = 0;
+    for (let i = 0; i < g.length; i++) s += g[i];
+    return s / g.length;
+  }
+
+  function invert(g) {
+    for (let i = 0; i < g.length; i++) g[i] = 255 - g[i];
+    return g;
+  }
+
+  function otsu(g) {
+    const hist = new Float64Array(256);
+    for (let i = 0; i < g.length; i++) hist[g[i]]++;
+    const total = g.length;
+    let sumAll = 0;
+    for (let t = 0; t < 256; t++) sumAll += t * hist[t];
+    let wb = 0, sb = 0, best = 0, thr = 128;
+    for (let t = 0; t < 256; t++) {
+      wb += hist[t];
+      if (!wb) continue;
+      const wf = total - wb;
+      if (!wf) break;
+      sb += t * hist[t];
+      const mb = sb / wb, mf = (sumAll - sb) / wf;
+      const between = wb * wf * (mb - mf) * (mb - mf);
+      if (between > best) { best = between; thr = t; }
+    }
+    return thr;
+  }
+
+  function binarizeOtsu(g) {
+    const t = otsu(g);
+    const b = new Uint8Array(g.length);
+    for (let i = 0; i < g.length; i++) b[i] = g[i] < t ? 1 : 0;
+    return b;
+  }
+
+  /* Umbral adaptativo de Bradley-Roth con imagen integral */
+  function binarizeAdaptive(g, w, h, k = 0.15) {
+    const win = Math.max(15, (Math.floor(Math.min(w, h) / 16)) | 1);
+    const r = win >> 1;
+    const W1 = w + 1;
+    // Uint32 alcanza para imágenes de hasta ~16 millones de píxeles y usa la mitad de memoria
+    const ii = new Uint32Array(W1 * (h + 1));
+    for (let y = 0; y < h; y++) {
+      let rowSum = 0;
+      for (let x = 0; x < w; x++) {
+        rowSum += g[y * w + x];
+        ii[(y + 1) * W1 + x + 1] = ii[y * W1 + x + 1] + rowSum;
+      }
+    }
+    const b = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) {
+      const y0 = Math.max(0, y - r), y1 = Math.min(h, y + r + 1);
+      for (let x = 0; x < w; x++) {
+        const x0 = Math.max(0, x - r), x1 = Math.min(w, x + r + 1);
+        const s = ii[y1 * W1 + x1] - ii[y0 * W1 + x1] - ii[y1 * W1 + x0] + ii[y0 * W1 + x0];
+        const m = s / ((y1 - y0) * (x1 - x0));
+        b[y * w + x] = g[y * w + x] < m * (1 - k) ? 1 : 0;
+      }
+    }
+    return b;
+  }
+
+  /* Diferencia de brillo del fondo entre zonas: alta = foto con sombras */
+  function backgroundSpread(g, w, h) {
+    const N = 6;
+    const vals = [];
+    for (let ty = 0; ty < N; ty++) {
+      for (let tx = 0; tx < N; tx++) {
+        const hist = new Uint32Array(256);
+        let n = 0;
+        const xs = Math.floor(tx * w / N), xe = Math.floor((tx + 1) * w / N);
+        const ys = Math.floor(ty * h / N), ye = Math.floor((ty + 1) * h / N);
+        for (let y = ys; y < ye; y += 2) for (let x = xs; x < xe; x += 2) { hist[g[y * w + x]]++; n++; }
+        let acc = 0, p90 = 255;
+        for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= n * 0.9) { p90 = v; break; } }
+        vals.push(p90);
+      }
+    }
+    return Math.max(...vals) - Math.min(...vals);
+  }
+
+  /* Borra trazos horizontales y verticales largos (bordes de tabla, subrayados) */
+  function removeLines(b, w, h, minH, minV) {
+    const mask = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) {
+      let x = 0;
+      while (x < w) {
+        if (b[y * w + x]) {
+          let e = x;
+          while (e + 1 < w && b[y * w + e + 1]) e++;
+          if (e - x + 1 >= minH) for (let k = x; k <= e; k++) mask[y * w + k] = 1;
+          x = e + 1;
+        } else x++;
+      }
+    }
+    for (let x = 0; x < w; x++) {
+      let y = 0;
+      while (y < h) {
+        if (b[y * w + x]) {
+          let e = y;
+          while (e + 1 < h && (b[(e + 1) * w + x] || (e + 2 < h && b[(e + 2) * w + x]))) e++;
+          if (e - y + 1 >= minV) for (let k = y; k <= e; k++) mask[k * w + x] = 1;
+          y = e + 1;
+        } else y++;
+      }
+    }
+    let removed = 0;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        if (mask[i] || (x > 0 && mask[i - 1]) || (x < w - 1 && mask[i + 1]) ||
+            (y > 0 && mask[i - w]) || (y < h - 1 && mask[i + w])) {
+          if (b[i]) { b[i] = 0; removed++; }
+        }
+      }
+    }
+    return removed;
+  }
+
+  /* Quita manchas diminutas (restos de cuadrícula, polvo) y, si se pide, lo que toca el borde
+     de la imagen (orilla del papel, letras de la otra cara que se transparentan) */
+  function despeckle(b, w, h, { minArea = 9, border = false } = {}) {
+    const N = w * h;
+    const q = new Int32Array(N); // cola de recorrido; al terminar contiene los píxeles del componente
+    const maxBorderArea = N * 0.05;
+    let removed = 0;
+    for (let start = 0; start < N; start++) {
+      if (b[start] !== 1) continue;
+      let head = 0, tail = 0, touches = false;
+      q[tail++] = start; b[start] = 2;
+      while (head < tail) {
+        const i = q[head++];
+        const x = i % w, y = (i - x) / w;
+        if (x <= 1 || y <= 1 || x >= w - 2 || y >= h - 2) touches = true;
+        if (x > 0 && b[i - 1] === 1) { b[i - 1] = 2; q[tail++] = i - 1; }
+        if (x < w - 1 && b[i + 1] === 1) { b[i + 1] = 2; q[tail++] = i + 1; }
+        if (y > 0 && b[i - w] === 1) { b[i - w] = 2; q[tail++] = i - w; }
+        if (y < h - 1 && b[i + w] === 1) { b[i + w] = 2; q[tail++] = i + w; }
+      }
+      if (tail < minArea || (border && touches && tail < maxBorderArea)) {
+        for (let k = 0; k < tail; k++) b[q[k]] = 0;
+        removed += tail;
+      }
+    }
+    for (let i = 0; i < N; i++) if (b[i] === 2) b[i] = 1;
+    return removed;
+  }
+
+  /* Umbrales de longitud para considerar un trazo como "línea" según el tamaño del texto:
+     se toma el percentil 95 de las corridas de tinta (sin contar las muy cortas) */
+  function lineThresholds(b, w, h) {
+    const MIN = 8;
+    const pct = (hist, total, p) => {
+      let acc = 0;
+      for (let v = 0; v < hist.length; v++) { acc += hist[v]; if (acc >= total * p) return v; }
+      return hist.length - 1;
+    };
+    const hv = new Uint32Array(4096), hh = new Uint32Array(4096);
+    let nv = 0, nh = 0;
+    for (let x = 0; x < w; x += 2) {
+      let run = 0;
+      for (let y = 0; y <= h; y++) {
+        if (y < h && b[y * w + x]) run++;
+        else { if (run >= MIN) { hv[Math.min(run, 4095)]++; nv++; } run = 0; }
+      }
+    }
+    for (let y = 0; y < h; y += 2) {
+      let run = 0;
+      for (let x = 0; x <= w; x++) {
+        if (x < w && b[y * w + x]) run++;
+        else { if (run >= MIN) { hh[Math.min(run, 4095)]++; nh++; } run = 0; }
+      }
+    }
+    const pv = nv > 200 ? pct(hv, nv, 0.95) : 25;
+    const ph = nh > 200 ? pct(hh, nh, 0.95) : 15;
+    return { minV: Math.max(40, Math.round(pv * 2.5)), minH: Math.max(40, Math.round(ph * 4)) };
+  }
+
+  /* Estima la inclinación (grados) maximizando la nitidez del perfil horizontal */
+  function estimateSkew(b, w, h, maxDeg = 6, step = 0.2) {
+    const f = Math.max(1, Math.ceil(Math.max(w, h) / 1000));
+    const xs = [], ys = [];
+    for (let y = 0; y < h; y += f) for (let x = 0; x < w; x += f) if (b[y * w + x]) { xs.push(x / f); ys.push(y / f); }
+    if (xs.length < 50) return 0;
+    let idx = null;
+    if (xs.length > 60000) {
+      idx = [];
+      const stepI = xs.length / 60000;
+      for (let i = 0; i < xs.length; i += stepI) idx.push(Math.floor(i));
+    }
+    const n = idx ? idx.length : xs.length;
+    const hw = (w + h) / f + 4;
+    const bins = new Float64Array(Math.ceil(hw * 2) + 4);
+    let best = -1, bestA = 0;
+    for (let a = -maxDeg; a <= maxDeg + 1e-9; a += step) {
+      const r = a * Math.PI / 180, c = Math.cos(r), s = Math.sin(r);
+      bins.fill(0);
+      for (let k = 0; k < n; k++) {
+        const i = idx ? idx[k] : k;
+        const yp = Math.round(ys[i] * c - xs[i] * s + hw);
+        bins[yp]++;
+      }
+      let score = 0;
+      for (let t = 0; t < bins.length; t++) score += bins[t] * bins[t];
+      if (score > best) { best = score; bestA = a; }
+    }
+    return Math.round(bestA * 100) / 100;
+  }
+
+  return { toGray, mean, invert, otsu, binarizeOtsu, binarizeAdaptive, backgroundSpread, removeLines, lineThresholds, despeckle, estimateSkew };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = ImageProc;
+</script>
+<script>
+/* ==========================================================================
+   XlsxWriter: genera un .xlsx real (Office Open XML) usando JSZip.
+   Convierte números, porcentajes, moneda y fechas a valores de Excel.
+   ========================================================================== */
+const XlsxWriter = (() => {
+  const esc = (s) => String(s)
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F￾￿]/g, '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  const colName = (i) => {
+    let s = '';
+    i += 1;
+    while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); }
+    return s;
+  };
+
+  const BUILTIN = { '0': 1, '0.00': 2, '#,##0': 3, '#,##0.00': 4, '0%': 9, '0.00%': 10 };
+
+  /**
+   * Interpreta el texto de una celda.
+   * locale: 'co' (1.234.567,89 · dd/mm/aaaa) o 'us' (1,234,567.89 · mm/dd/aaaa)
+   */
+  function parseValue(text, locale = 'co') {
+    const raw = String(text == null ? '' : text).trim();
+    if (!raw) return null;
+    // Fechas
+    const d = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4}|\d{2})$/);
+    if (d) {
+      const a = +d[1], b = +d[2];
+      let y = +d[3];
+      if (d[3].length === 2) y += 2000;
+      const day = locale === 'us' ? b : a, mon = locale === 'us' ? a : b;
+      if (mon >= 1 && mon <= 12 && day >= 1 && day <= 31 && y >= 1900 && y <= 2200) {
+        const ms = Date.UTC(y, mon - 1, day);
+        const check = new Date(ms);
+        if (check.getUTCDate() === day) {
+          const serial = (ms - Date.UTC(1899, 11, 30)) / 86400000;
+          return { t: 'n', v: serial, fmt: locale === 'us' ? 'mm/dd/yyyy' : 'dd/mm/yyyy' };
+        }
+      }
+      return { t: 's', v: raw };
+    }
+    // Números
+    let s = raw.replace(/^([(\-−]?)\s*(COP|USD|[$€£])\s*/i, '$1$').replace(/\s+%$/, '%');
+    let neg = false, pct = false, cur = false;
+    if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1).trim(); }
+    if (/^[-−]/.test(s)) { neg = !neg; s = s.slice(1).trim(); }
+    if (/^\$/.test(s)) { cur = true; s = s.slice(1).trim(); }
+    if (/^[-−]/.test(s)) { neg = !neg; s = s.slice(1).trim(); }
+    if (/%$/.test(s)) { pct = true; s = s.slice(0, -1).trim(); }
+    if (!/^\d[\d.,]*$/.test(s) || /[.,]$/.test(s)) return { t: 's', v: raw };
+    if (/^0\d/.test(s)) return { t: 's', v: raw }; // códigos con ceros a la izquierda
+    const digits = s.replace(/\D/g, '');
+    if (digits.length > 15) return { t: 's', v: raw };
+    const lastDot = s.lastIndexOf('.'), lastComma = s.lastIndexOf(',');
+    let dec = null, thou = null;
+    if (lastDot >= 0 && lastComma >= 0) {
+      dec = lastDot > lastComma ? '.' : ',';
+      thou = dec === '.' ? ',' : '.';
+    } else if (lastDot >= 0 || lastComma >= 0) {
+      const ch = lastDot >= 0 ? '.' : ',';
+      const count = s.split(ch).length - 1;
+      const after = s.length - s.lastIndexOf(ch) - 1;
+      if (count > 1) thou = ch;
+      else if (after !== 3) dec = ch;
+      else {
+        const localeDec = locale === 'us' ? '.' : ',';
+        if (ch === localeDec) dec = ch; else thou = ch;
+      }
+    }
+    let intPart = s, fracPart = '';
+    if (dec) {
+      const p = s.lastIndexOf(dec);
+      intPart = s.slice(0, p);
+      fracPart = s.slice(p + 1);
+      if (/[.,]/.test(fracPart)) return { t: 's', v: raw };
+    }
+    if (thou) {
+      const groups = intPart.split(thou);
+      if (groups[0].length < 1 || groups[0].length > 3 || groups.slice(1).some((g) => g.length !== 3)) {
+        return { t: 's', v: raw };
+      }
+      intPart = groups.join('');
+    }
+    if (/[.,]/.test(intPart)) return { t: 's', v: raw };
+    let v = parseFloat(intPart + (fracPart ? '.' + fracPart : ''));
+    if (!isFinite(v)) return { t: 's', v: raw };
+    if (neg) v = -v;
+    const nd = Math.min(fracPart.length, 4);
+    const decs = nd ? '.' + '0'.repeat(nd) : '';
+    let fmt;
+    if (pct) {
+      v = parseFloat((v / 100).toPrecision(15));
+      fmt = '0' + decs + '%';
+    } else if (cur) {
+      fmt = '"$" #,##0' + decs;
+    } else if (thou || Math.abs(v) >= 1e4) {
+      fmt = '#,##0' + decs;
+    } else {
+      fmt = nd ? '0' + decs : null;
+    }
+    if (neg && !pct && !cur && /^\(/.test(raw.trim())) fmt = (fmt || '#,##0') + ';(' + (fmt || '#,##0') + ')';
+    return { t: 'n', v, fmt };
+  }
+
+  /* Decide el formato numérico predominante (CO: 1.234,56 · US: 1,234.56) */
+  function detectLocale(texts) {
+    let co = 0, us = 0;
+    for (const t0 of texts) {
+      const t = String(t0 || '').replace(/[^\d.,]/g, '');
+      if (!/\d/.test(t)) continue;
+      if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t) && (t.split('.').length > 2 || t.includes(','))) co++;
+      else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(t) && (t.split(',').length > 2 || t.includes('.'))) us++;
+      else if (/^\d+,\d{1,2}$/.test(t)) co++;
+      else if (/^\d+\.\d{1,2}$/.test(t)) us++;
+    }
+    if (us > co) return 'us';
+    return 'co';
+  }
+
+  function makeStyles() {
+    const fmtIds = new Map();
+    const xfs = ['<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'];
+    const keys = new Map();
+    function get({ fmt = null, bold = false, fill = false, border = false, wrap = false, align = null }) {
+      const key = [fmt, bold, fill, border, wrap, align].join('|');
+      if (keys.has(key)) return keys.get(key);
+      let numFmtId = 0;
+      if (fmt) {
+        if (BUILTIN[fmt] != null) numFmtId = BUILTIN[fmt];
+        else {
+          if (!fmtIds.has(fmt)) fmtIds.set(fmt, 164 + fmtIds.size);
+          numFmtId = fmtIds.get(fmt);
+        }
+      }
+      const al = (wrap || align)
+        ? `<alignment${align ? ` horizontal="${align}"` : ''} vertical="top"${wrap ? ' wrapText="1"' : ''}/>` : '';
+      xfs.push(`<xf numFmtId="${numFmtId}" fontId="${bold ? 1 : 0}" fillId="${fill ? 2 : 0}" borderId="${border ? 1 : 0}" xfId="0"` +
+        ` applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"${al ? ' applyAlignment="1">' + al + '</xf>' : '/>'}`);
+      keys.set(key, xfs.length - 1);
+      return xfs.length - 1;
+    }
+    function xml() {
+      const nf = [...fmtIds].map(([code, id]) => `<numFmt numFmtId="${id}" formatCode="${esc(code)}"/>`).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (fmtIds.size ? `<numFmts count="${fmtIds.size}">${nf}</numFmts>` : '') +
+        '<fonts count="2"><font><sz val="11"/><name val="Calibri"/><family val="2"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/><family val="2"/></font></fonts>' +
+        '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
+        '<fill><patternFill patternType="solid"><fgColor rgb="FFDCE6F1"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+        '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>' +
+        '<border><left style="thin"><color rgb="FFB7B7B7"/></left><right style="thin"><color rgb="FFB7B7B7"/></right>' +
+        '<top style="thin"><color rgb="FFB7B7B7"/></top><bottom style="thin"><color rgb="FFB7B7B7"/></bottom><diagonal/></border></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        `<cellXfs count="${xfs.length}">${xfs.join('')}</cellXfs>` +
+        '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+    return { get, xml };
+  }
+
+  function sheetXml(sheet, styles, opts) {
+    const rows = sheet.rows;
+    const ncol = Math.max(1, ...rows.map((r) => r.length));
+    const widths = new Array(ncol).fill(8);
+    const out = [];
+    rows.forEach((row, ri) => {
+      const isHead = sheet.header && ri === 0;
+      const bold = isHead || (sheet.boldRows && sheet.boldRows.has(ri));
+      const cells = [];
+      for (let ci = 0; ci < ncol; ci++) {
+        const text = row[ci] == null ? '' : String(row[ci]);
+        const ref = colName(ci) + (ri + 1);
+        const border = sheet.kind === 'table';
+        widths[ci] = Math.max(widths[ci], Math.min(60, text.length * 1.15 + 3));
+        if (!text) {
+          if (border) cells.push(`<c r="${ref}" s="${styles.get({ border, bold, fill: isHead })}"/>`);
+          continue;
+        }
+        const pv = (!isHead && opts.convert && sheet.kind === 'table') ? parseValue(text, opts.locale) : { t: 's', v: text };
+        if (pv && pv.t === 'n') {
+          const s = styles.get({ fmt: pv.fmt, border, bold });
+          cells.push(`<c r="${ref}" s="${s}"><v>${pv.v}</v></c>`);
+        } else {
+          const s = styles.get({ border, bold, fill: isHead, wrap: sheet.kind === 'text' || isHead, align: isHead ? 'center' : null });
+          cells.push(`<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${esc(text)}</t></is></c>`);
+        }
+      }
+      out.push(`<row r="${ri + 1}">${cells.join('')}</row>`);
+    });
+    if (sheet.kind === 'text') widths[0] = 110;
+    const lastRef = colName(ncol - 1) + Math.max(1, rows.length);
+    const freeze = sheet.header && rows.length > 1;
+    const views = freeze
+      ? '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' +
+        '<selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>'
+      : '<sheetViews><sheetView workbookViewId="0"/></sheetViews>';
+    const cols = '<cols>' + widths.map((wd, i) =>
+      `<col min="${i + 1}" max="${i + 1}" width="${Math.round(wd * 10) / 10}" customWidth="1"/>`).join('') + '</cols>';
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
+      'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+      `<dimension ref="A1:${lastRef}"/>` + views + '<sheetFormatPr defaultRowHeight="15"/>' + cols +
+      `<sheetData>${out.join('')}</sheetData>` +
+      (freeze ? `<autoFilter ref="A1:${lastRef}"/>` : '') +
+      '<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>' +
+      '</worksheet>';
+  }
+
+  function safeNames(names) {
+    const used = new Set();
+    return names.map((n) => {
+      let base = String(n || 'Hoja').replace(/[\[\]:*?\/\\]/g, ' ').replace(/^'+|'+$/g, '').trim().slice(0, 31) || 'Hoja';
+      let name = base, k = 2;
+      while (used.has(name.toLowerCase())) { const suf = ` (${k++})`; name = base.slice(0, 31 - suf.length) + suf; }
+      used.add(name.toLowerCase());
+      return name;
+    });
+  }
+
+  /**
+   * sheets: [{ name, kind: 'table'|'text', rows: [[texto]], header: bool, boldRows: Set }]
+   * opts: { locale: 'co'|'us', convert: bool }
+   */
+  async function build(JSZipLib, sheets, opts = {}) {
+    const o = { locale: 'co', convert: true, ...opts };
+    if (!sheets.length) sheets = [{ name: 'Hoja1', kind: 'text', rows: [['']] }];
+    if (o.locale === 'auto') {
+      o.locale = detectLocale(sheets.filter((s) => s.kind === 'table').flatMap((s) => s.rows.flat()));
+    }
+    const names = safeNames(sheets.map((s) => s.name));
+    const styles = makeStyles();
+    const zip = new JSZipLib();
+    const sheetXmls = sheets.map((s) => sheetXml(s, styles, o));
+    zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+      sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('') +
+      '</Types>');
+    zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+      '</Relationships>');
+    const defined = sheets.map((s, i) => {
+      if (!(s.header && s.rows.length > 1)) return '';
+      const ncol = Math.max(1, ...s.rows.map((r) => r.length));
+      const ref = `'${names[i].replace(/'/g, "''")}'!$A$1:$${colName(ncol - 1)}$${s.rows.length}`;
+      return `<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">${esc(ref)}</definedName>`;
+    }).join('');
+    zip.file('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
+      'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+      '<bookViews><workbookView xWindow="0" yWindow="0" windowWidth="16000" windowHeight="9000"/></bookViews><sheets>' +
+      names.map((n, i) => `<sheet name="${esc(n)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('') +
+      '</sheets>' + (defined ? `<definedNames>${defined}</definedNames>` : '') + '</workbook>');
+    zip.file('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('') +
+      `<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
+      '</Relationships>');
+    sheetXmls.forEach((x, i) => zip.file(`xl/worksheets/sheet${i + 1}.xml`, x));
+    zip.file('xl/styles.xml', styles.xml());
+    const type = (typeof Blob !== 'undefined' && typeof window !== 'undefined') ? 'blob' : 'nodebuffer';
+    return zip.generateAsync({
+      type, compression: 'DEFLATE',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+  }
+
+  return { build, parseValue, detectLocale };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = XlsxWriter;
+</script>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const state = { pages: [], sel: null, worker: null, workerLang: null, busy: false, view: 'orig', dirty: false, seq: 0 };
+  const LOW_CONF = 70;
+  const COARSE = window.matchMedia('(pointer: coarse)').matches;
+  // En celulares se limita el tamaño de trabajo para no agotar la memoria
+  const MAX_DIM = (COARSE || (navigator.deviceMemory && navigator.deviceMemory <= 4)) ? 2800 : 3500;
+
+  /* ---------------- utilidades ---------------- */
+  const loaded = {};
+  function loadScript(src) {
+    if (!loaded[src]) {
+      loaded[src] = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src; s.async = true;
+        s.onload = resolve;
+        s.onerror = () => { delete loaded[src]; reject(new Error('No se pudo descargar ' + src.split('/').slice(-3).join('/') + '. Revisa tu conexión a internet (solo se necesita la primera vez).')); };
+        document.head.appendChild(s);
+      });
+    }
+    return loaded[src];
+  }
+  let toastTimer;
+  function toast(msg, err = false, ms = 3800) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.className = 'toast on' + (err ? ' err' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.className = 'toast' + (err ? ' err' : ''); }, ms);
+  }
+  function makeCanvas(w, h) {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h));
+    return c;
+  }
+  const stampNow = () => { const d = new Date(); return [d.getHours(), d.getMinutes(), d.getSeconds()].map((x) => String(x).padStart(2, '0')).join(''); };
+  const escHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const settings = () => ({
+    mode: $('mode').value, lang: $('lang').value, prep: $('prep').value,
+    deskew: $('deskew').checked, lines: $('lines').checked,
+    convert: $('convert').checked, locale: $('locale').value,
+  });
+  const baseName = () => {
+    const p = state.pages[0];
+    return p ? p.name.replace(/\.[^.]+$/, '').replace(/[^\wáéíóúñÁÉÍÓÚÑ\- ]+/g, '').trim().slice(0, 60) || 'ocr' : 'ocr';
+  };
+  function download(blob, name) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+  }
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+      ta.remove();
+      return ok;
+    }
+  }
+
+  /* ---------------- carga de archivos ---------------- */
+  async function addFiles(fileList) {
+    const files = [...fileList];
+    if (!files.length) return;
+    let added = 0;
+    for (const f of files) {
+      try {
+        if (f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) {
+          added += await addPdf(f);
+        } else if (f.type.startsWith('image/') || /\.(png|jpe?g|webp|bmp|gif|tiff?)$/i.test(f.name)) {
+          const canvas = await decodeImage(f);
+          addPage(f.name || 'imagen.png', canvas);
+          added++;
+        } else {
+          toast(`"${f.name}" no es una imagen ni un PDF.`, true);
+        }
+      } catch (e) {
+        console.error(e);
+        toast(`No se pudo abrir "${f.name}": ${e.message || e}`, true, 6000);
+      }
+    }
+    if (added) refreshPages();
+  }
+
+  function decodeImage(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const c = makeCanvas(img.naturalWidth, img.naturalHeight);
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        resolve(c);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('formato de imagen no compatible con el navegador (prueba con JPG o PNG)')); };
+      img.src = url;
+    });
+  }
+
+  async function addPdf(file) {
+    setProgress(0, 'Abriendo PDF…');
+    const pdfjs = await import(CFG.pdfjs);
+    pdfjs.GlobalWorkerOptions.workerSrc = CFG.pdfWorker;
+    const doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const n = doc.numPages;
+    for (let i = 1; i <= n; i++) {
+      setProgress((i - 1) / n, `Leyendo página ${i} de ${n} del PDF…`);
+      const page = await doc.getPage(i);
+      const v1 = page.getViewport({ scale: 1 });
+      const scale = Math.min(4, Math.max(1.5, 2200 / Math.max(v1.width, v1.height)));
+      const vp = page.getViewport({ scale });
+      const c = makeCanvas(vp.width, vp.height);
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+      await page.render({ canvasContext: ctx, canvas: c, viewport: vp }).promise;
+      addPage(`${file.name.replace(/\.pdf$/i, '')} · pág. ${i}`, c);
+    }
+    hideProgress();
+    return n;
+  }
+
+  function addPage(name, canvas) {
+    const id = ++state.seq;
+    const th = makeCanvas(92, 92);
+    const tctx = th.getContext('2d');
+    const s = Math.max(92 / canvas.width, 92 / canvas.height);
+    tctx.fillStyle = '#fff'; tctx.fillRect(0, 0, 92, 92);
+    tctx.drawImage(canvas, (92 - canvas.width * s) / 2, (92 - canvas.height * s) / 2, canvas.width * s, canvas.height * s);
+    state.pages.push({ id, name, canvas, rot: 0, rotCanvas: canvas, crop: null, thumb: th.toDataURL('image/jpeg', .8),
+      status: 'pending', words: null, key: null, mode: null, blocks: null, proc: null });
+    if (!state.sel) state.sel = id;
+  }
+
+  /* ---------------- lista de páginas ---------------- */
+  const STATUS = { pending: 'Pendiente', run: 'Procesando…', ok: 'Listo', err: 'Error' };
+  function refreshPages() {
+    const ul = $('pages');
+    ul.innerHTML = '';
+    state.pages.forEach((p, i) => {
+      const li = document.createElement('li');
+      li.className = 'pg' + (p.id === state.sel ? ' sel' : '');
+      li.innerHTML = `<img alt="" src="${p.thumb}"><div><div class="nm" title="${escHtml(p.name)}">${i + 1}. ${escHtml(p.name)}</div>` +
+        `<div class="st ${p.status}">${STATUS[p.status]}${p.crop ? ' · recortada' : ''}</div></div>` +
+        `<button class="icon-btn" title="Quitar" aria-label="Quitar página"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
+      li.addEventListener('click', (e) => {
+        if (e.target.closest('button')) { removePage(p.id); return; }
+        selectPage(p.id);
+      });
+      ul.appendChild(li);
+    });
+    const n = state.pages.length;
+    $('run').disabled = !n || state.busy;
+    $('clearAll').disabled = !n || state.busy;
+    $('runLbl').textContent = n > 1 ? `Extraer texto (${n} páginas)` : 'Extraer texto';
+    renderView();
+  }
+  function selectPage(id) {
+    state.sel = id;
+    refreshPages();
+    const el = document.querySelector(`.page-result[data-id="${id}"]`);
+    if (el && state.pages.length > 1) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  function removePage(id) {
+    if (state.busy) return;
+    state.pages = state.pages.filter((p) => p.id !== id);
+    if (state.sel === id) state.sel = state.pages[0] ? state.pages[0].id : null;
+    const el = document.querySelector(`.page-result[data-id="${id}"]`);
+    if (el) el.remove();
+    refreshPages();
+    updateSummary();
+  }
+  const current = () => state.pages.find((p) => p.id === state.sel) || null;
+
+  /* ---------------- vista previa y recorte ---------------- */
+  function rotateCanvas(src, deg) {
+    if (!deg) return src;
+    const swap = deg % 180 !== 0;
+    const c = makeCanvas(swap ? src.height : src.width, swap ? src.width : src.height);
+    const ctx = c.getContext('2d');
+    ctx.translate(c.width / 2, c.height / 2);
+    ctx.rotate(deg * Math.PI / 180);
+    ctx.drawImage(src, -src.width / 2, -src.height / 2);
+    return c;
+  }
+  function renderView() {
+    const p = current();
+    const has = !!p;
+    $('viewEmpty').hidden = has;
+    $('stage').hidden = !has;
+    $('cropHint').hidden = !has || state.view !== 'orig';
+    ['rotL', 'rotR'].forEach((k) => { $(k).disabled = !has || state.busy; });
+    $('uncrop').disabled = !has || !p.crop || state.busy;
+    $('cropBtn').disabled = !has || state.busy || state.view !== 'orig';
+    $('viewName').textContent = has ? p.name : '';
+    if (!has) return;
+    const showProc = state.view === 'proc';
+    const src = showProc ? (p.proc || buildProc(p)) : p.rotCanvas;
+    const cv = $('canvas');
+    const maxW = 1800;
+    const s = Math.min(1, maxW / src.width);
+    cv.width = Math.round(src.width * s); cv.height = Math.round(src.height * s);
+    const ctx = cv.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(src, 0, 0, cv.width, cv.height);
+    $('stage').classList.toggle('processed', showProc);
+    const box = $('cropBox');
+    if (!showProc && p.crop) {
+      const W = p.rotCanvas.width, H = p.rotCanvas.height;
+      Object.assign(box.style, { left: (p.crop.x / W * 100) + '%', top: (p.crop.y / H * 100) + '%',
+        width: (p.crop.w / W * 100) + '%', height: (p.crop.h / H * 100) + '%' });
+      box.hidden = false;
+    } else box.hidden = true;
+  }
+  function buildProc(p) {
+    try { p.proc = preprocess(p, settings(), p.info && p.info.method !== 'none' ? p.info.method : null).canvas; } catch (e) { console.error(e); return p.rotCanvas; }
+    return p.proc;
+  }
+  function setView(v) {
+    state.view = v;
+    $('vOrig').classList.toggle('on', v === 'orig');
+    $('vProc').classList.toggle('on', v === 'proc');
+    renderView();
+  }
+  $('vOrig').onclick = () => setView('orig');
+  $('vProc').onclick = () => setView('proc');
+  function invalidate(p) { p.key = null; p.proc = null; }
+  function rotate(delta) {
+    const p = current();
+    if (!p || state.busy) return;
+    p.rot = (p.rot + delta + 360) % 360;
+    p.rotCanvas = rotateCanvas(p.canvas, p.rot);
+    p.crop = null;
+    invalidate(p);
+    p.status = 'pending';
+    refreshPages();
+  }
+  function setCropMode(on) {
+    state.cropMode = on;
+    $('cropBtn').classList.toggle('toggled', on);
+    $('cropBtn').textContent = on ? 'Cancelar recorte' : 'Recortar';
+    $('stage').classList.toggle('cropping', on);
+  }
+  $('cropBtn').onclick = () => setCropMode(!state.cropMode);
+  $('rotL').onclick = () => rotate(-90);
+  $('rotR').onclick = () => rotate(90);
+  $('uncrop').onclick = () => { const p = current(); if (!p) return; p.crop = null; invalidate(p); p.status = 'pending'; refreshPages(); };
+
+  (function cropEvents() {
+    const stage = $('stage'), box = $('cropBox');
+    let start = null;
+    const toImg = (e) => {
+      const p = current();
+      const r = $('canvas').getBoundingClientRect();
+      const x = Math.min(Math.max(e.clientX - r.left, 0), r.width);
+      const y = Math.min(Math.max(e.clientY - r.top, 0), r.height);
+      return { x: x / r.width * p.rotCanvas.width, y: y / r.height * p.rotCanvas.height, fx: x / r.width, fy: y / r.height };
+    };
+    stage.addEventListener('pointerdown', (e) => {
+      if (state.view !== 'orig' || !current() || state.busy) return;
+      if (COARSE && !state.cropMode) return;
+      stage.setPointerCapture(e.pointerId);
+      start = toImg(e);
+      box.hidden = false;
+      Object.assign(box.style, { left: start.fx * 100 + '%', top: start.fy * 100 + '%', width: '0', height: '0' });
+    });
+    stage.addEventListener('pointermove', (e) => {
+      if (!start) return;
+      const q = toImg(e);
+      Object.assign(box.style, {
+        left: Math.min(start.fx, q.fx) * 100 + '%', top: Math.min(start.fy, q.fy) * 100 + '%',
+        width: Math.abs(q.fx - start.fx) * 100 + '%', height: Math.abs(q.fy - start.fy) * 100 + '%',
+      });
+    });
+    const end = (e) => {
+      if (!start) return;
+      const p = current();
+      const q = toImg(e);
+      const crop = { x: Math.round(Math.min(start.x, q.x)), y: Math.round(Math.min(start.y, q.y)),
+        w: Math.round(Math.abs(q.x - start.x)), h: Math.round(Math.abs(q.y - start.y)) };
+      start = null;
+      if (crop.w > 20 && crop.h > 12) { p.crop = crop; invalidate(p); p.status = 'pending'; }
+      if (COARSE) setCropMode(false);
+      refreshPages();
+    };
+    stage.addEventListener('pointerup', end);
+    stage.addEventListener('pointercancel', () => { start = null; renderView(); });
+  })();
+
+  /* ---------------- preprocesado ---------------- */
+  function preprocess(p, s, forceMethod) {
+    const src = p.rotCanvas;
+    const cr = p.crop || { x: 0, y: 0, w: src.width, h: src.height };
+    const maxDim = Math.max(cr.w, cr.h);
+    let scale = 1;
+    if (maxDim < 1600) scale = Math.min(3, 2400 / maxDim);
+    else if (maxDim > MAX_DIM) scale = MAX_DIM / maxDim;
+    let w = Math.round(cr.w * scale), h = Math.round(cr.h * scale);
+    let c = makeCanvas(w, h);
+    let ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(src, cr.x, cr.y, cr.w, cr.h, 0, 0, w, h);
+    const info = { scale, angle: 0, method: 'none', inverted: false };
+    if (s.prep === 'none') return { canvas: c, info };
+    let g = ImageProc.toGray(ctx.getImageData(0, 0, w, h));
+    if (ImageProc.mean(g) < 110) { ImageProc.invert(g); info.inverted = true; }
+    if (s.deskew) {
+      const a = ImageProc.estimateSkew(ImageProc.binarizeOtsu(g), w, h);
+      if (Math.abs(a) >= 0.3) {
+        info.angle = a;
+        const gc = grayCanvas(g, w, h);
+        const rad = -a * Math.PI / 180;
+        const cs = Math.abs(Math.cos(rad)), sn = Math.abs(Math.sin(rad));
+        const nw = Math.ceil(w * cs + h * sn), nh = Math.ceil(w * sn + h * cs);
+        c = makeCanvas(nw, nh);
+        ctx = c.getContext('2d', { willReadFrequently: true });
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, nw, nh);
+        ctx.translate(nw / 2, nh / 2); ctx.rotate(rad); ctx.drawImage(gc, -w / 2, -h / 2);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        w = nw; h = nh;
+        g = ImageProc.toGray(ctx.getImageData(0, 0, w, h));
+      }
+    }
+    let method = forceMethod || s.prep;
+    if (method === 'auto') method = ImageProc.backgroundSpread(g, w, h) > 45 ? 'adaptive' : 'otsu';
+    info.method = method;
+    const b = method === 'adaptive' ? ImageProc.binarizeAdaptive(g, w, h) : ImageProc.binarizeOtsu(g);
+    if (s.lines) {
+      const t = ImageProc.lineThresholds(b, w, h);
+      ImageProc.removeLines(b, w, h, t.minH, t.minV);
+    }
+    ImageProc.despeckle(b, w, h, { minArea: 9, border: !p.crop });
+    const out = ctx.createImageData(w, h);
+    for (let i = 0, j = 0; i < b.length; i++, j += 4) {
+      const v = b[i] ? 0 : 255;
+      out.data[j] = out.data[j + 1] = out.data[j + 2] = v; out.data[j + 3] = 255;
+    }
+    ctx.putImageData(out, 0, 0);
+    return { canvas: c, info };
+  }
+  function grayCanvas(g, w, h) {
+    const c = makeCanvas(w, h);
+    const ctx = c.getContext('2d');
+    const im = ctx.createImageData(w, h);
+    for (let i = 0, j = 0; i < g.length; i++, j += 4) { im.data[j] = im.data[j + 1] = im.data[j + 2] = g[i]; im.data[j + 3] = 255; }
+    ctx.putImageData(im, 0, 0);
+    return c;
+  }
+
+  /* ---------------- OCR ---------------- */
+  const STAGES = {
+    'loading tesseract core': 'Cargando el motor OCR…',
+    'initializing tesseract': 'Iniciando el motor OCR…',
+    'loading language traineddata': 'Cargando idioma (la primera vez se descarga)…',
+    'loading language traineddata (from cache)': 'Cargando idioma…',
+    'initializing api': 'Preparando…',
+    'recognizing text': 'Reconociendo texto…',
+  };
+  let progCtx = { i: 0, n: 1 };
+  function onLog(m) {
+    if (!m || !m.status) return;
+    const label = STAGES[m.status] || m.status;
+    const page = progCtx.n > 1 ? ` · página ${progCtx.i + 1} de ${progCtx.n}` : '';
+    if (m.status === 'recognizing text') {
+      setProgress((progCtx.i + (m.progress || 0)) / progCtx.n, label + page + ` ${Math.round((m.progress || 0) * 100)}%`);
+    } else setProgress(progCtx.i / progCtx.n, label + page);
+  }
+  async function getWorker(lang) {
+    if (state.worker && state.workerLang === lang) return state.worker;
+    if (state.worker) { try { await state.worker.terminate(); } catch (e) { /* ignorar */ } state.worker = null; }
+    setProgress(0, 'Descargando el motor OCR…');
+    await loadScript(CFG.tesseract);
+    state.worker = await Tesseract.createWorker(lang, 1, { ...CFG.workerOptions, logger: onLog,
+      errorHandler: (e) => console.error('Tesseract', e) });
+    state.workerLang = lang;
+    return state.worker;
+  }
+  /* Calidad de una lectura: confianza ponderada por la cantidad de letras y números */
+  function quality(words) {
+    let score = 0, letters = 0;
+    for (const w of words) {
+      const n = (w.text.match(/[A-Za-z0-9À-ÿ]/g) || []).length;
+      score += Math.max(0, w.conf) / 100 * n;
+      letters += n;
+    }
+    return { score, mean: letters ? score / letters * 100 : 0 };
+  }
+  function setProgress(f, txt) {
+    $('prog').classList.add('on');
+    $('progBar').style.width = Math.round(Math.min(1, Math.max(0, f)) * 100) + '%';
+    if (txt) $('progTxt').textContent = txt;
+  }
+  function hideProgress() { $('prog').classList.remove('on'); }
+
+  async function runAll() {
+    if (state.busy || !state.pages.length) return;
+    if (state.dirty && !confirm('Se volverá a generar el resultado y se perderán las correcciones que hiciste a mano. ¿Continuar?')) return;
+    const s = settings();
+    state.busy = true;
+    refreshPages();
+    $('run').disabled = true;
+    const psm = s.mode === 'text' ? '3' : '6';
+    let errors = 0;
+    try {
+      const worker = await getWorker(s.lang);
+      progCtx = { i: 0, n: state.pages.length };
+      for (let i = 0; i < state.pages.length; i++) {
+        const p = state.pages[i];
+        progCtx.i = i;
+        const key = JSON.stringify([s.lang, psm, s.prep, s.deskew, s.lines, p.rot, p.crop]);
+        try {
+          if (p.key !== key || !p.words) {
+            p.status = 'run'; refreshPages();
+            const tag = state.pages.length > 1 ? ` · página ${i + 1} de ${state.pages.length}` : '';
+            const pass = async (method, ps, label) => {
+              setProgress(i / state.pages.length, label + tag + '…');
+              await new Promise((r) => setTimeout(r, 30));
+              const { canvas, info } = preprocess(p, s, method);
+              info.psm = ps;
+              await worker.setParameters({ tessedit_pageseg_mode: ps, preserve_interword_spaces: '1', user_defined_dpi: '300' });
+              const { data } = await worker.recognize(canvas, {}, { text: true, tsv: true });
+              const words = Layout.parseTSV(data.tsv, { width: canvas.width, height: canvas.height });
+              return { canvas, info, words, q: quality(words) };
+            };
+            let best = await pass(null, psm, 'Mejorando la imagen');
+            const all = [best];
+            // Si la lectura sale dudosa, prueba otras combinaciones y se queda con la mejor
+            if (best.q.mean < 70 && s.prep !== 'none') {
+              const altPsm = psm === '6' ? '3' : '6';
+              const altMethod = best.info.method === 'adaptive' ? 'otsu' : 'adaptive';
+              const tries = [[best.info.method, altPsm]];
+              if (s.prep === 'auto') tries.push([altMethod, psm], [altMethod, altPsm]);
+              for (const [m, ps] of tries) {
+                const r = await pass(m, ps, 'Lectura dudosa: probando otra configuración');
+                if (r.words.length) all.push(r);
+                if (r.q.score > best.q.score * 1.05) best = r;
+                if (best.q.mean >= 80) break;
+              }
+            }
+            p.proc = best.canvas; p.info = best.info; p.words = best.words;
+            p.passes = [best, ...all.filter((r) => r !== best).sort((a, b) => b.q.score - a.q.score)]
+              .map((r) => ({ words: r.words, info: r.info, q: r.q }));
+            p.passIdx = 0;
+            p.key = key;
+          }
+          p.mode = s.mode;
+          p.blocks = Layout.analyze(p.words, p.mode).blocks;
+          p.status = 'ok';
+        } catch (e) {
+          console.error(e);
+          p.status = 'err'; errors++;
+          toast(`Error en "${p.name}": ${e.message || e}`, true, 6000);
+        }
+      }
+      setProgress(1, errors ? `Terminado con ${errors} error(es).` : 'Listo. Revisa y corrige antes de exportar.');
+      renderResults();
+      setTimeout(hideProgress, 2500);
+      if (window.matchMedia('(max-width: 1180px)').matches) $('resCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (e) {
+      console.error(e);
+      hideProgress();
+      toast(e.message || String(e), true, 8000);
+    } finally {
+      state.busy = false;
+      refreshPages();
+    }
+  }
+  $('run').onclick = runAll;
+
+  /* ---------------- render de resultados ---------------- */
+  function renderResults() {
+    const box = $('results');
+    box.innerHTML = '';
+    const done = state.pages.filter((p) => p.blocks);
+    if (!done.length) {
+      box.innerHTML = '<div class="empty">No se obtuvo texto. Prueba otra opción en <b>Mejora de la imagen</b> o recorta la zona que te interesa.</div>';
+    }
+    done.forEach((p) => box.appendChild(renderPage(p)));
+    box.classList.toggle('no-marks', !$('marks').checked);
+    state.dirty = false;
+    updateSummary();
+  }
+
+  function renderPage(p) {
+    const multi = state.pages.length > 1;
+    const wrap = document.createElement('section');
+    wrap.className = 'page-result';
+    wrap.dataset.id = p.id;
+    wrap.dataset.name = p.name;
+    const head = document.createElement('div');
+    head.className = 'pr-h';
+    head.innerHTML = `<h3 title="Ver imagen">${multi ? 'Página ' + (state.pages.indexOf(p) + 1) + ' · ' : ''}${escHtml(p.name)}</h3>` +
+      (p.info && p.info.angle ? `<span class="meta">enderezada ${p.info.angle > 0 ? '+' : ''}${p.info.angle}°</span>` : '') +
+      (p.passes && p.passes.length > 1
+        ? `<label class="meta alt-lbl" title="La imagen es difícil de leer: el motor probó varias configuraciones. Elige la que mejor quedó.">Lectura <select class="alt">` +
+          p.passes.map((r, k) => `<option value="${k}">${k + 1}${k === 0 ? ' (sugerida)' : ''}</option>`).join('') + '</select></label>'
+        : '') +
+      (p.passes && p.passes[p.passIdx || 0].q.mean < 70 ? '<span class="badge warn">Lectura dudosa: revisa el texto</span>' : '') +
+      '<span class="spacer"></span><label class="meta" style="display:flex;gap:6px;align-items:center">Leer como ' +
+      `<select class="mode-sel"><option value="auto">Automático</option><option value="text">Texto</option><option value="table">Tabla</option></select></label>`;
+    head.querySelector('h3').onclick = () => selectPage(p.id);
+    const alt = head.querySelector('select.alt');
+    if (alt) {
+      alt.value = String(p.passIdx || 0);
+      alt.onchange = () => {
+        if (wrap.dataset.dirty && !confirm('Se perderán las correcciones de esta página. ¿Continuar?')) { alt.value = String(p.passIdx || 0); return; }
+        const r = p.passes[+alt.value];
+        p.passIdx = +alt.value; p.words = r.words; p.info = r.info; p.proc = null;
+        p.blocks = Layout.analyze(p.words, p.mode).blocks;
+        wrap.replaceWith(renderPage(p));
+        updateSummary();
+        if (state.sel === p.id && state.view === 'proc') renderView();
+      };
+    }
+    const sel = head.querySelector('select.mode-sel');
+    sel.value = p.mode || 'auto';
+    sel.onchange = () => {
+      if (wrap.dataset.dirty && !confirm('Se perderán las correcciones de esta página. ¿Continuar?')) { sel.value = p.mode; return; }
+      p.mode = sel.value;
+      p.blocks = Layout.analyze(p.words, p.mode).blocks;
+      const fresh = renderPage(p);
+      wrap.replaceWith(fresh);
+      updateSummary();
+    };
+    wrap.appendChild(head);
+    if (!p.blocks.length) {
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'No se encontró texto en esta página.';
+      wrap.appendChild(e);
+    }
+    let tcount = 0;
+    for (const b of p.blocks) {
+      if (b.type === 'text') wrap.appendChild(renderText(b));
+      else wrap.appendChild(renderTable(b, ++tcount));
+    }
+    wrap.addEventListener('input', (e) => {
+      if (!e.target.closest('[contenteditable="true"]')) return;
+      wrap.dataset.dirty = '1'; state.dirty = true;
+    });
+    return wrap;
+  }
+
+  function renderText(b) {
+    const div = document.createElement('div');
+    div.className = 'tblock block';
+    div.dataset.type = 'text';
+    div.contentEditable = 'true';
+    div.spellcheck = true;
+    div.innerHTML = b.paragraphs.map((para) =>
+      `<p${para.heading ? ' class="h"' : ''}>` + para.words.map((w) => w.conf < LOW_CONF
+        ? `<mark class="dud" title="Revisar: confianza ${Math.round(w.conf)}%">${escHtml(w.text)}</mark>` : escHtml(w.text)).join(' ') + '</p>').join('');
+    return div;
+  }
+
+  function renderTable(b, n) {
+    const box = document.createElement('div');
+    box.className = 'block';
+    box.dataset.type = 'table';
+    box.dataset.header = b.header ? '1' : '0';
+    box.innerHTML = `<div class="tbl-tools"><span class="ttl">Tabla ${n}</span><span class="meta dims"></span><span class="spacer"></span>` +
+      '<button class="btn sm" data-a="addRow" title="Insertar fila debajo de la celda seleccionada">+ Fila</button>' +
+      '<button class="btn sm" data-a="delRow" title="Eliminar la fila seleccionada">− Fila</button>' +
+      '<button class="btn sm" data-a="addCol" title="Insertar columna a la derecha">+ Col.</button>' +
+      '<button class="btn sm" data-a="delCol" title="Eliminar la columna seleccionada">− Col.</button>' +
+      '<button class="btn sm" data-a="head" title="Marcar o desmarcar la primera fila como encabezado">Encabezado</button>' +
+      '<button class="btn sm" data-a="copy" title="Copiar para pegar en Excel">Copiar</button></div>' +
+      '<div class="table-wrap"><table class="ocr"><tbody></tbody></table></div>';
+    const table = box.querySelector('table');
+    const tb = table.querySelector('tbody');
+    table.classList.toggle('head', b.header);
+    const ncol = Math.max(1, ...b.rows.map((r) => r.length));
+    for (const row of b.rows) {
+      const tr = document.createElement('tr');
+      for (let c = 0; c < ncol; c++) tr.appendChild(makeCell(row[c] || { text: '', conf: 100 }));
+      tb.appendChild(tr);
+    }
+    let active = null;
+    tb.addEventListener('focusin', (e) => {
+      const td = e.target.closest('td');
+      if (!td) return;
+      if (active) active.classList.remove('act');
+      active = td; td.classList.add('act');
+    });
+    tb.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const td = e.target.closest('td');
+        const tr = td && td.parentElement.nextElementSibling;
+        if (tr) tr.children[td.cellIndex] && tr.children[td.cellIndex].focus();
+      }
+    });
+    const dims = () => { box.querySelector('.dims').textContent = `${tb.rows.length} × ${tb.rows[0] ? tb.rows[0].cells.length : 0}`; };
+    dims();
+    box.querySelector('.tbl-tools').addEventListener('click', async (e) => {
+      const a = e.target.closest('button') && e.target.closest('button').dataset.a;
+      if (!a) return;
+      const ri = active && active.isConnected ? active.parentElement.rowIndex : tb.rows.length - 1;
+      const ci = active && active.isConnected ? active.cellIndex : (tb.rows[0] ? tb.rows[0].cells.length - 1 : 0);
+      const cols = tb.rows[0] ? tb.rows[0].cells.length : 1;
+      if (a === 'addRow') {
+        const tr = document.createElement('tr');
+        for (let c = 0; c < cols; c++) tr.appendChild(makeCell({ text: '', conf: 100 }));
+        tb.rows[ri] ? tb.rows[ri].after(tr) : tb.appendChild(tr);
+        tr.cells[0].focus();
+      } else if (a === 'delRow') {
+        if (tb.rows.length > 1 && tb.rows[ri]) { tb.rows[ri].remove(); active = null; }
+      } else if (a === 'addCol') {
+        for (const tr of tb.rows) { const td = makeCell({ text: '', conf: 100 }); tr.cells[ci] ? tr.cells[ci].after(td) : tr.appendChild(td); }
+      } else if (a === 'delCol') {
+        if (cols > 1) { for (const tr of tb.rows) if (tr.cells[ci]) tr.cells[ci].remove(); active = null; }
+      } else if (a === 'head') {
+        const on = box.dataset.header !== '1';
+        box.dataset.header = on ? '1' : '0';
+        table.classList.toggle('head', on);
+      } else if (a === 'copy') {
+        const ok = await copyText(tableRows(box).map((r) => r.map((c) => c.replace(/[\t\n]+/g, ' ')).join('\t')).join('\n'));
+        toast(ok ? 'Tabla copiada. Pégala en Excel con Ctrl+V.' : 'No se pudo copiar.', !ok);
+        return;
+      }
+      box.closest('.page-result').dataset.dirty = '1';
+      state.dirty = true;
+      dims();
+    });
+    return box;
+  }
+  function makeCell(c) {
+    const td = document.createElement('td');
+    td.contentEditable = 'true';
+    td.textContent = c.text;
+    if (c.text && Layout.isNumeric(c.text)) td.classList.add('num');
+    if (c.text && c.conf < LOW_CONF) { td.classList.add('dud'); td.title = `Revisar: confianza ${Math.round(c.conf)}%`; }
+    td.addEventListener('input', () => { td.classList.remove('dud'); td.removeAttribute('title'); }, { once: true });
+    return td;
+  }
+
+  function updateSummary() {
+    const blocks = [...document.querySelectorAll('#results .block')];
+    const tables = blocks.filter((b) => b.dataset.type === 'table').length;
+    const texts = blocks.length - tables;
+    const has = blocks.length > 0;
+    ['expWord', 'expExcel', 'expTxt', 'copyAll'].forEach((k) => { $(k).disabled = !has; });
+    $('expWord').classList.remove('rec'); $('expExcel').classList.remove('rec');
+    const sum = $('summary');
+    sum.className = 'badge' + (has ? ' good' : '');
+    if (!has) { sum.textContent = 'Sin resultados'; return; }
+    if (tables) {
+      sum.textContent = `${tables} tabla${tables > 1 ? 's' : ''}${texts ? ' y texto' : ''} · recomendado Excel`;
+      $('expExcel').classList.add('rec');
+    } else {
+      sum.textContent = 'Texto detectado · recomendado Word';
+      $('expWord').classList.add('rec');
+    }
+  }
+
+  /* ---------------- lectura del resultado (incluye correcciones) ---------------- */
+  const clean = (s) => String(s || '').replace(/ /g, ' ').replace(/[ \t]+/g, ' ').trim();
+  function tableRows(box) {
+    return [...box.querySelectorAll('tr')].map((tr) => [...tr.cells].map((td) => clean(td.innerText)));
+  }
+  function textParas(box) {
+    const out = [];
+    const push = (txt, heading) => {
+      for (const part of String(txt).split(/\n+/)) { const t = clean(part); if (t) out.push({ text: t, heading }); }
+    };
+    for (const node of box.childNodes) {
+      if (node.nodeType === 3) push(node.textContent, false);
+      else if (node.nodeType === 1) push(node.innerText, node.classList.contains('h'));
+    }
+    return out;
+  }
+  function collect() {
+    return [...document.querySelectorAll('#results .page-result')].map((pr) => ({
+      name: pr.dataset.name,
+      blocks: [...pr.querySelectorAll('.block')].map((b) => b.dataset.type === 'table'
+        ? { type: 'table', header: b.dataset.header === '1', rows: tableRows(b) }
+        : { type: 'text', paragraphs: textParas(b) }),
+    }));
+  }
+  function asPlainText(pages) {
+    return pages.map((pg) => (pages.length > 1 ? `=== ${pg.name} ===\n\n` : '') + pg.blocks.map((b) => b.type === 'table'
+      ? b.rows.map((r) => r.join('\t')).join('\n')
+      : b.paragraphs.map((p) => p.text).join('\n\n')).join('\n\n')).join('\n\n\n');
+  }
+
+  /* ---------------- exportar: Word ---------------- */
+  async function exportWord() {
+    const pages = collect();
+    try {
+      $('expWord').disabled = true;
+      toast('Generando documento de Word…');
+      await loadScript(CFG.docx);
+      const D = window.docx;
+      const border = { style: D.BorderStyle.SINGLE, size: 4, color: 'A6A6A6' };
+      const sections = pages.map((pg, pi) => {
+        const wide = pg.blocks.some((b) => b.type === 'table' && b.rows[0] && b.rows[0].length > 6);
+        const margin = 1134;
+        const pageW = wide ? 15840 : 12240, pageH = wide ? 12240 : 15840;
+        const contentW = pageW - margin * 2;
+        const children = [];
+        for (const b of pg.blocks) {
+          if (b.type === 'text') {
+            for (const para of b.paragraphs) {
+              children.push(new D.Paragraph(para.heading
+                ? { heading: D.HeadingLevel.HEADING_2, children: [new D.TextRun({ text: para.text })] }
+                : { spacing: { after: 160, line: 276 }, children: [new D.TextRun({ text: para.text })] }));
+            }
+          } else {
+            const ncol = Math.max(1, ...b.rows.map((r) => r.length));
+            const weights = Array.from({ length: ncol }, (_, c) =>
+              Math.min(40, Math.max(5, ...b.rows.map((r) => (r[c] || '').length))));
+            const tot = weights.reduce((a, x) => a + x, 0);
+            const widths = weights.map((x) => Math.floor(x / tot * contentW));
+            widths[ncol - 1] += contentW - widths.reduce((a, x) => a + x, 0);
+            const rows = b.rows.map((r, ri) => {
+              const isHead = b.header && ri === 0;
+              return new D.TableRow({
+                tableHeader: isHead,
+                children: widths.map((wd, ci) => {
+                  const txt = r[ci] || '';
+                  return new D.TableCell({
+                    width: { size: wd, type: D.WidthType.DXA },
+                    margins: { top: 50, bottom: 50, left: 90, right: 90 },
+                    shading: isHead ? { fill: 'DCE6F1', type: D.ShadingType.CLEAR, color: 'auto' } : undefined,
+                    children: [new D.Paragraph({
+                      alignment: !isHead && Layout.isNumeric(txt) ? D.AlignmentType.RIGHT : D.AlignmentType.LEFT,
+                      children: [new D.TextRun({ text: txt, bold: isHead, size: 20 })],
+                    })],
+                  });
+                }),
+              });
+            });
+            children.push(new D.Table({
+              width: { size: contentW, type: D.WidthType.DXA }, columnWidths: widths, rows,
+              borders: { top: border, bottom: border, left: border, right: border, insideHorizontal: border, insideVertical: border },
+            }));
+            children.push(new D.Paragraph({ children: [] }));
+          }
+        }
+        if (!children.length) children.push(new D.Paragraph({ children: [] }));
+        return {
+          properties: { page: { size: { width: 12240, height: 15840, orientation: wide ? D.PageOrientation.LANDSCAPE : D.PageOrientation.PORTRAIT },
+            margin: { top: margin, bottom: margin, left: margin, right: margin } } },
+          children,
+        };
+      });
+      const doc = new D.Document({
+        creator: 'Escáner OCR local',
+        title: baseName(),
+        styles: { default: { document: { run: { font: 'Calibri', size: 22 } } } },
+        sections,
+      });
+      const blob = await D.Packer.toBlob(doc);
+      download(blob, baseName() + '.docx');
+      toast('Word descargado.');
+    } catch (e) {
+      console.error(e);
+      toast('No se pudo crear el Word: ' + (e.message || e), true, 7000);
+    } finally { $('expWord').disabled = false; }
+  }
+
+  /* ---------------- exportar: Excel ---------------- */
+  async function exportExcel() {
+    const pages = collect();
+    const s = settings();
+    try {
+      $('expExcel').disabled = true;
+      toast('Generando libro de Excel…');
+      await loadScript(CFG.jszip);
+      const sheets = [];
+      const textRows = [];
+      const bold = new Set();
+      let n = 0;
+      pages.forEach((pg) => {
+        const label = pages.length > 1 ? pg.name : '';
+        let wroteLabel = false;
+        for (const b of pg.blocks) {
+          if (b.type === 'table') {
+            n++;
+            sheets.push({ name: `Tabla ${n}`, kind: 'table', header: b.header, rows: b.rows });
+          } else if (b.paragraphs.length) {
+            if (label && !wroteLabel) { if (textRows.length) textRows.push(['']); bold.add(textRows.length); textRows.push([label]); wroteLabel = true; }
+            for (const p of b.paragraphs) { if (p.heading) bold.add(textRows.length); textRows.push([p.text]); }
+          }
+        }
+      });
+      if (textRows.length) {
+        const sheet = { name: 'Texto', kind: 'text', header: false, rows: textRows, boldRows: bold };
+        if (sheets.length) sheets.push(sheet); else sheets.unshift(sheet);
+      }
+      const blob = await XlsxWriter.build(window.JSZip, sheets, { locale: s.locale, convert: s.convert });
+      download(blob, baseName() + '.xlsx');
+      toast(n ? `Excel descargado con ${n} hoja${n > 1 ? 's' : ''} de tabla${textRows.length ? ' y una de texto' : ''}.` : 'Excel descargado (no había tablas: el texto va en la hoja "Texto").');
+    } catch (e) {
+      console.error(e);
+      toast('No se pudo crear el Excel: ' + (e.message || e), true, 7000);
+    } finally { $('expExcel').disabled = false; }
+  }
+
+  $('expWord').onclick = exportWord;
+  $('expExcel').onclick = exportExcel;
+  $('expTxt').onclick = () => {
+    download(new Blob(['﻿' + asPlainText(collect())], { type: 'text/plain;charset=utf-8' }), baseName() + '.txt');
+  };
+  $('copyAll').onclick = async () => {
+    const ok = await copyText(asPlainText(collect()));
+    toast(ok ? 'Texto copiado al portapapeles.' : 'No se pudo copiar.', !ok);
+  };
+
+  /* ---------------- eventos generales ---------------- */
+  const drop = $('drop');
+  drop.addEventListener('click', () => $('file').click());
+  drop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file').click(); } });
+  $('file').addEventListener('change', (e) => { addFiles(e.target.files); e.target.value = ''; });
+  $('camBtn').addEventListener('click', () => $('camFile').click());
+  $('camFile').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) {
+      const stamp = stampNow();
+      addFiles([new File([f], `foto-${stamp}.jpg`, { type: f.type || 'image/jpeg' })]);
+    }
+    e.target.value = '';
+  });
+  let dragDepth = 0;
+  window.addEventListener('dragenter', (e) => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) { dragDepth++; document.body.classList.add('dragging'); } });
+  window.addEventListener('dragleave', () => { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) document.body.classList.remove('dragging'); });
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => {
+    e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging');
+    if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+  });
+  window.addEventListener('paste', (e) => {
+    const items = [...(e.clipboardData ? e.clipboardData.items : [])].filter((it) => it.type.startsWith('image/'));
+    if (!items.length) return;
+    if (e.target.closest && e.target.closest('[contenteditable="true"]')) e.preventDefault();
+    const stamp = stampNow();
+    addFiles(items.map((it, i) => {
+      const f = it.getAsFile();
+      return new File([f], `captura-${stamp}${items.length > 1 ? '-' + (i + 1) : ''}.png`, { type: f.type });
+    }));
+    toast('Captura agregada.');
+  });
+  $('clearAll').onclick = () => {
+    if (state.busy) return;
+    if (state.dirty && !confirm('¿Quitar todas las páginas y resultados?')) return;
+    state.pages = []; state.sel = null;
+    $('results').innerHTML = '<div class="empty">Aquí aparecerá lo que se extraiga.<br>Puedes <b>corregir el texto y las celdas</b> directamente antes de exportar.</div>';
+    state.dirty = false;
+    refreshPages(); updateSummary();
+  };
+  $('marks').addEventListener('change', () => $('results').classList.toggle('no-marks', !$('marks').checked));
+  const MODE_HELP = {
+    auto: 'Separa párrafos y tablas por sí solo.',
+    text: 'Ideal para cartas, informes y documentos de varias columnas.',
+    table: 'Toda la imagen se trata como una tabla.',
+  };
+  $('mode').addEventListener('change', () => { $('modeHelp').textContent = MODE_HELP[$('mode').value]; });
+  ['prep', 'deskew', 'lines'].forEach((id) => $(id).addEventListener('change', () => {
+    state.pages.forEach((p) => { p.proc = null; });
+    if (state.view === 'proc') renderView();
+  }));
+  // Guarda los ajustes en este navegador
+  const SAVE = ['mode', 'lang', 'prep', 'deskew', 'lines', 'convert', 'locale', 'marks'];
+  try {
+    const saved = JSON.parse(localStorage.getItem('ocr-ajustes') || '{}');
+    for (const k of SAVE) if (k in saved) { const el = $(k); if (el.type === 'checkbox') el.checked = !!saved[k]; else el.value = saved[k]; }
+    $('modeHelp').textContent = MODE_HELP[$('mode').value];
+  } catch (e) { /* sin almacenamiento */ }
+  SAVE.forEach((k) => $(k).addEventListener('change', () => {
+    try { localStorage.setItem('ocr-ajustes', JSON.stringify(Object.fromEntries(SAVE.map((x) => [x, $(x).type === 'checkbox' ? $(x).checked : $(x).value])))); } catch (e) { /* ignorar */ }
+  }));
+
+  // App instalable: solo cuando la página se abre desde un sitio web (no como archivo local)
+  if (/^https?:$/.test(location.protocol)) {
+    const link = document.createElement('link');
+    link.rel = 'manifest'; link.href = 'manifest.webmanifest';
+    document.head.appendChild(link);
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => { /* sin modo offline */ }));
+    }
+  }
+
+  window.__ocr = { state, addFiles, runAll, collect, exportWord, exportExcel, preprocess };
+  refreshPages();
+})();
+</script>
+</body>
+</html>
